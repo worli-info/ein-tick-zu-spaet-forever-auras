@@ -3,7 +3,7 @@
 ## Notes: Configurable positioning of Blizzard's native buff and debuff frames.
 ## Notes-deDE: Konfigurierbare Anordnung der originalen Buff- und Debuff-Anzeigen.
 ## Author: olqs
-## Version: 0.1.0
+## Version: 0.1.1
 ## X-Curse-Project-ID: 1830502
 ## SavedVariables: EinTickZuSpaetForeverAurasDB
 Locales.lua

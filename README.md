@@ -4,8 +4,9 @@ A standalone layout addon for **World of Warcraft: Forever (Interface 16001)**.
 Arrange Blizzard's native buff and debuff displays without replacing their
 buttons or scanning auras yourself.
 
-**Early beta:** automated tests pass, but live-client visual, combat, Edit Mode
-and resolution testing is still pending. Back up your settings before testing.
+**Stable release:** the addon has been confirmed working in a live Forever
+client. Automated layout and localization tests also pass. Not every combat,
+Edit Mode or resolution combination has been tested; please report any issues.
 
 ## Features
 
