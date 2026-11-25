@@ -67,3 +67,32 @@ They do not replace live-client testing.
 ## License
 
 MIT. Author: **olqs**. Not affiliated with Blizzard Entertainment.
+
+## Maintainer releases
+
+The `Publish release` GitHub Actions workflow tests, packages and publishes a
+pushed version tag to GitHub and CurseForge project **1830502**, targeting
+**WoW Forever 1.60.1**. It uses the maintained BigWigs packager; third-party
+actions are pinned to commits. The repository secret `CURSEFORGE_API_TOKEN`
+holds the upload token. Never commit that token.
+
+1. Update `## Version` in the TOC and add the version's changelog.
+2. Commit and push the changes.
+3. Create and push an annotated tag, for example:
+
+```sh
+git tag -a v0.1.1-beta.1 -m "v0.1.1-beta.1"
+git push origin v0.1.1-beta.1
+```
+
+The TOC version for this example is `0.1.1`. `-alpha.N` tags upload as alpha;
+`-beta.N` tags upload as beta. A plain tag such as `v0.1.1`
+uploads as a regular release. The initial `v0.1.0` is an explicitly designated
+early beta and was uploaded separately, without moving or recreating its tag.
+
+CurseForge moderation can delay publication after a successful upload.
+Running the workflow manually (`workflow_dispatch`) performs tests and a
+packaging dry run without upload credentials; only pushed version tags publish.
+Before retrying a failed publishing run, check both sites: an upload might
+already have succeeded. Uploads are not transactionally idempotent across
+GitHub and CurseForge. Do not force-push published version tags.

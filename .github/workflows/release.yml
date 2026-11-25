@@ -1,0 +1,82 @@
+name: Publish release
+
+on:
+  workflow_dispatch:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: curseforge-1830502
+  cancel-in-progress: false
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out tagged source
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          fetch-depth: 0
+
+      - name: Install Lua
+        run: sudo apt-get update && sudo apt-get install -y lua5.1
+
+      - name: Check version and syntax
+        env:
+          RELEASE_TAG: ${{ github.ref_name }}
+          RELEASE_EVENT: ${{ github.event_name }}
+        run: |
+          if [[ "$RELEASE_EVENT" == "push" ]]; then
+            [[ "$RELEASE_TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+(-(alpha|beta)[.-]?[0-9]+)?$ ]]
+            version="${RELEASE_TAG#v}"
+            version="${version%%-*}"
+            toc_version="$(sed -n 's/^## Version: //p' EinTickZuSpaetForeverAuras.toc)"
+            test "$toc_version" = "$version"
+          fi
+          luac5.1 -p Auras.lua
+          luac5.1 -p Locales.lua
+          luac5.1 -p Options.lua
+
+      - name: Test native layout and localization
+        run: lua5.1 tests/test-auras.lua .
+
+      - name: Package without upload credentials
+        uses: BigWigsMods/packager@01e8631a69c69d7654c788d152630d5fed9e3812 # v2 / 2.7.0
+        with:
+          args: -d -p 1830502 -g 1.60.1 -u
+          pandoc: "false"
+
+      - name: Check installation ZIP
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import zipfile
+          archives = list(Path(".release").glob("*.zip"))
+          assert len(archives) == 1, archives
+          with zipfile.ZipFile(archives[0]) as archive:
+              assert archive.testzip() is None
+              names = archive.namelist()
+              root = "EinTickZuSpaetForeverAuras/"
+              assert all(name.startswith(root) for name in names)
+              assert not any("/tests/" in name or "/.github/" in name or name.endswith(".env") for name in names)
+              toc = archive.read(root + "EinTickZuSpaetForeverAuras.toc").decode()
+              assert "## Interface: 16001" in toc
+              assert "## X-Curse-Project-ID: 1830502" in toc
+              for name in ("Auras.lua", "Locales.lua", "Options.lua"):
+                  assert root + name in names
+          print("Installation ZIP verified:", archives[0].name)
+          PY
+
+      - name: Publish verified ZIP to GitHub and CurseForge
+        if: github.event_name == 'push'
+        uses: BigWigsMods/packager@01e8631a69c69d7654c788d152630d5fed9e3812 # v2 / 2.7.0
+        env:
+          CF_API_TOKEN: ${{ secrets.CURSEFORGE_API_TOKEN }}
+          GH_API_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          args: -c -z -p 1830502 -g 1.60.1 -u
+          pandoc: "false"
