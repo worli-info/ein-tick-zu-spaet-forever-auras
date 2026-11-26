@@ -73,10 +73,50 @@ jobs:
 
       - name: Publish verified ZIP to GitHub and CurseForge
         if: github.event_name == 'push'
-        uses: BigWigsMods/packager@01e8631a69c69d7654c788d152630d5fed9e3812 # v2 / 2.7.0
         env:
           CF_API_TOKEN: ${{ secrets.CURSEFORGE_API_TOKEN }}
-          GH_API_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          args: -c -z -p 1830502 -g 1.60.1 -u
-          pandoc: "false"
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: |
+          # Upload the ZIP checked above; packager -z leaves its upload path unset.
+          test -n "$CF_API_TOKEN"
+          python3 - <<'PY'
+          import json, os
+          from pathlib import Path
+          tag = os.environ["RELEASE_TAG"]
+          release_type = "alpha" if "-alpha" in tag else "beta" if "-beta" in tag else "release"
+          metadata = {
+              "displayName": tag,
+              "gameVersions": [17053],
+              "releaseType": release_type,
+              "changelog": Path("CHANGELOG.md").read_text(),
+              "changelogType": "markdown",
+          }
+          Path(".release/cf-metadata.json").write_text(json.dumps(metadata))
+          PY
+          archives=(.release/*.zip)
+          test "${#archives[@]}" -eq 1
+          # Never automatically retry this POST: an ambiguous response needs inspection.
+          curl --fail-with-body --silent --show-error --max-time 180 \
+            -H "X-Api-Token: $CF_API_TOKEN" \
+            -F "metadata=<.release/cf-metadata.json" \
+            -F "file=@${archives[0]}" \
+            https://wow.curseforge.com/api/projects/1830502/upload-file \
+            -o .release/curseforge-upload.json
+          python3 - <<'PY'
+          import json, os
+          from pathlib import Path
+          result = json.loads(Path(".release/curseforge-upload.json").read_text())
+          file_id = result.get("id")
+          assert isinstance(file_id, int) and file_id > 0, result
+          message = f"CurseForge accepted file {file_id} (moderation may still be pending)."
+          print(message)
+          with open(os.environ["GITHUB_STEP_SUMMARY"], "a") as summary:
+              summary.write(message + "\n")
+          PY
+          release_args=()
+          if [[ "$RELEASE_TAG" == *-alpha* || "$RELEASE_TAG" == *-beta* ]]; then
+            release_args+=(--prerelease)
+          fi
+          gh release create "$RELEASE_TAG" "${archives[0]}" .release/curseforge-upload.json \
+            --verify-tag --title "$RELEASE_TAG" --notes-file CHANGELOG.md "${release_args[@]}"

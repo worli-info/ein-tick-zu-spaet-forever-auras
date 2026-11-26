@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.1.2 — 2026-11-26
+
+- Fix release publication: upload the validated ZIP directly and require a
+  CurseForge file ID instead of accepting a no-op packager invocation.
+- Publish the upload receipt with the GitHub release for verification.
+- No runtime changes. Version 0.1.1 was tagged but never uploaded.
+
 ## 0.1.1 — 2026-11-25
 
 - First stable release following successful live-client user verification.
